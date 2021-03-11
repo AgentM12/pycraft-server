@@ -1,0 +1,52 @@
+{
+    "jvm-args": [
+        "-Xms2048M",
+        "-Xmx2048M"
+    ],
+    "hide-gui": false,
+    "upgrade-when-update": true,
+    "server-list": [
+        {
+            "name": "Release",
+            "version": "release",
+            "description": "Latest release.",
+            "auto-update": true,
+            "auto-restart": true,
+            "read-only": false,
+            "initialize": []
+        },
+        {
+            "name": "Snapshot",
+            "version": "snapshot",
+            "description": "Latest snapshot.",
+            "auto-update": true,
+            "auto-restart": true,
+            "read-only": false,
+            "initialize": []
+        },
+        {
+            "name": "CellsAtHome",
+            "version": "custom",
+            "description": "Server for Development of Cells at Home.",
+            "auto-update": false,
+            "auto-restart": false,
+            "read-only": false,
+            "initialize": [
+                "backup schedule 1h 2",
+                "notify join on",
+                "notify leave on",
+                "notify chat add (|.*\\s+)@[Ss]erver(|\\s+.*)$",
+                "notify chat add (|.*\\s+)@[Aa]gent[Mm](|\\s+.*)$"
+            ]
+        },
+        {
+            "name": "Test",
+            "version": "custom",
+            "description": "Test Server",
+            "auto-update": false,
+            "auto-restart": false,
+            "read-only": false,
+            "initialize": []
+        }
+    ]
+}
