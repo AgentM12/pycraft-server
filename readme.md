@@ -26,6 +26,7 @@ Special thanks to Dinnerbone for [mcstatus](https://github.com/Dinnerbone/mcstat
      - Events
 
 <a name="install"/>
+
 ## 1. Installation ##
 
 You need Python 3.X to run the scripts.  
@@ -42,6 +43,7 @@ If you have any trouble, check my YouTube channel for the tutorial: [https://www
 You can contact me in the comments for any further questions.
 
 <a name="basic"/>
+
 ## 2. Basic Usage ##
 
 ### Setting up a PyCraft server ###
@@ -207,6 +209,7 @@ Automatic backups will have the name: `<universe>_<world>_<date>_<time>_apcbkp.z
 *The server will NOT automatically back up any worlds when the version is updated.* <!--Make sure to make a backup before updating to a newer version automatically.-->
 
 <a name="advanced"/>
+
 ## 3. Advanced Usage ##
 
 ### Creating your own modules ###
