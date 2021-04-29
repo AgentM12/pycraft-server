@@ -16,6 +16,15 @@
             "initialize": []
         },
         {
+            "name": "Private",
+            "version": "snapshot",
+            "description": "For private multiplayer.",
+            "auto-update": true,
+            "auto-restart": true,
+            "read-only": false,
+            "initialize": []
+        },
+        {
             "name": "Snapshot",
             "version": "snapshot",
             "description": "Latest snapshot.",

@@ -27,7 +27,7 @@ def usage(subcmd=[]):
     return """Usage:   backup <now|schedule|off>: Create/schedule backups.
 
 Subcommands:
- - now: Create a manual backup right now.
+ - now [END]: Create a manual backup right now. Specify `END` to also stop the server.
  - schedule <TIME<m|h>> [AMOUNT]: Schedule backup every TIME, up to AMOUNT automatic backups to keep (default 1).
  - off: Turn automatic backups off.
 
@@ -74,6 +74,9 @@ def callback(cmd, server_config, run_cmd, event_triggers):
     h, t = pu.next_cmd(cmd)
     if h == 'now':
         make_backup(run_cmd, save_event)
+        h2, t2 = pu.next_cmd(t)
+        if (h2 == 'END'):
+            run_cmd("stop")
     elif h == 'off':
         if not (timer is None):
             timer.cancel()
