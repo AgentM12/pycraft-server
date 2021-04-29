@@ -195,14 +195,14 @@ This command handles backups. There are 2 types of backups, manual backups and a
 Manual backups are stored under `<SERVER FOLDER>/backups`.  
 Automatic backups are stored under `<SERVER FOLDER>/backups/auto`.
 
-- `backup now`: Creates a manual backup right now.
+- `backup now [END]`: Creates a manual backup right now. (Specify `END` to close the server after the backup finishes)
 - `backup schedule <TIME> [AMOUNT]`: Schedules a backup in TIME up to AMOUNT auto backups in total, after which the oldest is deleted.
 - `backup off`: Turns off automatic backups.
 
 The name of the resulting zipfile backup will be: `<universe>_<world>_<date>_<time>.zip`  
 Automatic backups will have the name: `<universe>_<world>_<date>_<time>_apcbkp.zip`
 
-**Note that making a backup can take a while and during a backup, auto-saving is turned off. The absolute bare minimum backup-time is therefore 5 minutes, 30 minutes or more is advised.**
+**Note that making a backup can take a while and during a backup, auto-saving is turned off. The absolute bare minimum backup-time is therefore 5 minutes, 30 minutes or more is advised.** <!--Currently, the zipping is not smart and will include all files, not just the new/changed/deleted files.-->
 
 **Also note that a backup takes quite some space, especially for large worlds. Therefore it is recommended to keep the total amount of automatic backups around 4 max. You can make as many manual backups of course.**
 
@@ -276,7 +276,7 @@ The server specific config file is passed as a dictionary. You can edit it, but 
 
 #### Events ####
 
-Some things can't be queried using namemc. I provided as best as I could, an interface between server chat and events for the major things.
+Some things can't be queried using namemc/mcstatus. I provided as best as I could, an interface between server chat and events for the major things.
 
 `event_triggers` is passed as a dict, with keys as event names.
 e.g. `{'done': event_trigger}`
