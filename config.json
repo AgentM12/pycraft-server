@@ -4,7 +4,7 @@
         "-Xmx2048M"
     ],
     "hide-gui": false,
-    "upgrade-when-update": true,
+    "upgrade-all-chunks-on-update": false,
     "server-list": [
         {
             "name": "Release",
@@ -34,9 +34,18 @@
             "initialize": []
         },
         {
-            "name": "CellsAtHome",
+            "name": "Minigame",
+            "version": "snapshot",
+            "description": "Minigames",
+            "auto-update": true,
+            "auto-restart": true,
+            "read-only": true,
+            "initialize": []
+        },
+        {
+            "name": "Test",
             "version": "custom",
-            "description": "Server for Development of Cells at Home.",
+            "description": "Test Server",
             "auto-update": false,
             "auto-restart": false,
             "read-only": false,
@@ -47,15 +56,6 @@
                 "notify chat add (|.*\\s+)@[Ss]erver(|\\s+.*)$",
                 "notify chat add (|.*\\s+)@[Aa]gent[Mm](|\\s+.*)$"
             ]
-        },
-        {
-            "name": "Test",
-            "version": "custom",
-            "description": "Test Server",
-            "auto-update": false,
-            "auto-restart": false,
-            "read-only": false,
-            "initialize": []
         }
     ]
 }

@@ -291,9 +291,14 @@ def initial_commands(stdin):
 
 def server_version_info():
 	with zipfile.ZipFile(server_jar) as z:
-		with z.open("version.json") as f:
-			verj = json.load(f)
-			return f"Version: {verj['name']}"
+		try:
+			with z.open("version.json") as f:
+				verj = json.load(f)
+				return f"Version: {verj['name']}"
+		except:
+			verj = "1.11"
+			return f"Version: {verj}"
+
 
 def ask_server_type(config):
 	while True:
