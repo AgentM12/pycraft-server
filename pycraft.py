@@ -20,6 +20,7 @@ from jprops import Properties
 from threading import Thread
 from threading import Event
 from threading import Lock
+from threading import Condition
 from queue import Queue
 from os import path
 
@@ -48,6 +49,7 @@ read_flag = False
 running = False
 command_providers = []
 raw_imports = []
+read_condition = Condition()
 
 base_pattern = '(^\\[\\d{1,2}:\\d{1,2}:\\d{1,2}\\] \\[[a-zA-Z\\s]*?(?:|#\\d+)\\/[A-Z].*?\\]:) (%s)'
 name_pattern = '[a-zA-Z0-9_]+?' # Use this when you don't use pre-/suffixes (safer)
@@ -118,9 +120,10 @@ def get_server_properties(server_jar_location):
 		p.load(f)
 	return p
 
-def server_args(universe, world, nogui, port):
+def server_args(universe, world, nogui, forceupgrade, port):
 	args = []
 	if nogui: args.append('--nogui')
+	if forceupgrade: args.append('--forceUpgrade')
 	if universe != '.': args.extend(['--universe', universe])
 	args.extend(['--world', world])
 	args.extend(['--port', str(port)])
@@ -168,6 +171,8 @@ def obtain_launch_code(config, args):
 	expect_type('world', world, str)
 	nogui = config.get('hide-gui', True)
 	expect_type('hide-gui', nogui, bool)
+	forceupgrade = config.get('upgrade-all-chunks-on-version-mismatch')
+	expect_type('upgrade-all-chunks-on-version-mismatch', forceupgrade, bool)
 	port = configure('port', try_get([server_config.get('port'), int(server_properties.get('server-port'))], default=25565))
 	expect_type('port', port, int)
 	qport = configure('query-port', try_get([int(server_properties.get('query.port'))], default=25565))
@@ -177,7 +182,7 @@ def obtain_launch_code(config, args):
 	configure('server-root', server_jar_location)
 	configure('world-root', path.join(path.join(server_jar_location, universe), world))
 
-	server_argument_list = server_args(universe, world, nogui, port)
+	server_argument_list = server_args(universe, world, nogui, forceupgrade, port)
 	return ['java'] + jvm_arguments + ['-jar', 'server.jar'] + server_argument_list
 
 def launch_server(name, launch_code):
@@ -200,6 +205,8 @@ def add_input(input_queue):
 			buff = []
 			read_flag = True
 			queue_lock.release()
+			with read_condition:
+				read_condition.notify()
 
 def list_modules():
 	return ', '.join([cp.name for cp in command_providers])
@@ -360,6 +367,8 @@ def main():
 		initial_commands(process.stdin)
 
 		while running:
+			with read_condition:
+				read_condition.wait()
 			if read_flag:
 				queue_lock.acquire()
 				s = ''

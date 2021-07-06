@@ -4,7 +4,7 @@
         "-Xmx2048M"
     ],
     "hide-gui": false,
-    "upgrade-all-chunks-on-update": false,
+    "upgrade-all-chunks-on-version-mismatch": false,
     "server-list": [
         {
             "name": "Release",
@@ -23,6 +23,17 @@
             "auto-restart": true,
             "read-only": false,
             "initialize": []
+        },
+        {
+            "name": "Research",
+            "version": "release",
+            "description": "For research purposes.",
+            "auto-update": true,
+            "auto-restart": false,
+            "read-only": false,
+            "initialize": [
+                "backup schedule 30m 4"
+            ]
         },
         {
             "name": "Snapshot",

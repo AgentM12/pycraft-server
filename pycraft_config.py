@@ -24,7 +24,7 @@ def default_config():
     config = {
         'jvm-args': [],
         'hide-gui': True,
-        'upgrade-when-update': False,
+        'upgrade-all-chunks-on-version-mismatch': False,
         'server-list': []
     }
 
@@ -87,7 +87,7 @@ def main():
         toggle('hide-gui')
 
     def toggle_upgrade_when_update():
-        toggle('upgrade-when-update')
+        toggle('upgrade-all-chunks-on-version-mismatch')
 
     def pretty_print_list(list_name, ls):
         i = 1
@@ -260,7 +260,7 @@ def main():
         print('Server config options: ')
         print('- 1: Modify "jvm-args" (%s)' % config['jvm-args']) 
         print('- 2: Toggle "hide-gui" (%s)' % config['hide-gui'])
-        print('- 3: Toggle "optimize-on-startup" (%s)' % config['upgrade-when-update'])
+        print('- 3: Toggle "optimize-on-startup" (%s)' % config['upgrade-all-chunks-on-version-mismatch'])
         print('- 4: View/Modify "server-list"')
         print('- quit|exit: Exit this tool at any time.')
         
