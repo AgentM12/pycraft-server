@@ -396,7 +396,9 @@ def main():
 
 	for cp in command_providers:
 		cp.close() # Kill any threads first.
-
+	
+	with read_condition:
+		read_condition.notify() # Remove the condition
 	print_thread.join()
 	pyprint('Server has terminated succesfully!')
 
