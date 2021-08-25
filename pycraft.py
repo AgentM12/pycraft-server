@@ -188,7 +188,7 @@ def obtain_launch_code(config, args):
 def launch_server(name, launch_code):
 	wd = os.getcwd()
 	os.chdir('%s/%s' % (servers_location, name))
-	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE, bufsize=1, universal_newlines=True)
+	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE, encoding='utf-8', bufsize=1, universal_newlines=True)
 	os.chdir(wd)
 	return p
 

@@ -60,7 +60,8 @@
             "auto-update": false,
             "auto-restart": false,
             "read-only": false,
-            "initialize": [
+            "initialize": [],
+            "comment_initialize": [
                 "backup schedule 1h 2",
                 "notify join on",
                 "notify leave on",
