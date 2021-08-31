@@ -3,6 +3,12 @@
         "-Xms2048M",
         "-Xmx2048M"
     ],
+    "module-data": {
+        "module_backup": {
+            "prefer-7z": true,
+            "fast-backup": true
+        }
+    },
     "hide-gui": false,
     "upgrade-all-chunks-on-version-mismatch": false,
     "server-list": [
@@ -61,7 +67,7 @@
             "auto-restart": false,
             "read-only": false,
             "initialize": [],
-            "comment_initialize": [
+            "__comment_initialize": [
                 "backup schedule 1h 2",
                 "notify join on",
                 "notify leave on",

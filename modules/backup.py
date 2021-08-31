@@ -1,5 +1,8 @@
 import pycraft_utils as pu
+import subprocess
+import tempfile
 import zipfile
+import shutil
 import time
 import os
 
@@ -13,10 +16,22 @@ from os import path
 description = "Manage backups automatically."
 patterns = ['backup']
 
+seven_zip_exe = "7z" # Set to absolute path if not in %PATH% variable.
+
+backup_method_initialized = False
+use_7z = True
+fast_backup = True
+
 timer = None
-min_b_time = 300 # 5 minutes
+min_b_time = 120 # 5 minutes
 running = True
 save_event = None
+
+DEFAULT_MODULE_DATA = {
+    'use-7z': use_7z,
+    'quick-backup': fast_backup,
+    '7z-path': seven_zip_exe
+}
 
 backup_lock = Lock()
 
@@ -36,6 +51,51 @@ Backups are saved per server configuration under the folder 'backups'. Automatic
 def pyprint(string, loglevel=1):
     get_module().pyprint(string, loglevel)
 
+def world_7z(world, new_backup_zip, auto=False):
+    '''
+    Requires 7z to be installed (and on path)
+    Uses 7z to create a new zip archive (faster) or update using an existing (newest) archive
+    '''
+    pyprint("Using 7z to create backup archive", 0)
+    backups_root_folder = auto_backup_folder if auto else backup_folder
+    
+    files = os.listdir(backups_root_folder)
+    backups = []
+    for file in files:
+        if file.startswith(f"{universe_name}_{world_name}_") and file.endswith('.zip'):
+            backups.append(file)
+
+    with tempfile.TemporaryDirectory() as temp_folder:
+        # Update existing backup file and add disk_exist_ar_not, remove ar_exist_disk_not, replace disk_new, keep ar_new, keep ar_same, replace disk_diff
+        if fast_backup and len(backups) > 0:
+            existing_newest_backup_zip = max([path.join(backups_root_folder, backup) for backup in backups], key=path.getmtime)
+            if os.path.exists(existing_newest_backup_zip):
+                pyprint(f"Updating from newest backup: {existing_newest_backup_zip}", 0)
+                shutil.move(existing_newest_backup_zip, f"{temp_folder}/old.zip")
+            
+                cmd = [seven_zip_exe, "u", f"{temp_folder}/old.zip", "-u-", f"-up0q0r2x1y2z1w2!{temp_folder}/new.zip", "-ssw", "*", "-x!session.lock"]
+        # Create new backup file and add all
+        else:
+            pyprint("7z will create a new backup file!", 0)
+            cmd = [seven_zip_exe, "a", f"{temp_folder}/new.zip", "-ssw", "*", "-x!session.lock"]
+
+        rc = subprocess.call(cmd, cwd=world, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT) # Suppress dirty output, but may be useful for debugging.
+        
+        # Move the existing backup back!
+        if fast_backup and len(backups) > 0:
+            shutil.move(f"{temp_folder}/old.zip", existing_newest_backup_zip)
+        
+        if (rc != 0):
+            pyprint("An unexpected error happened while backing up the files!", 3)
+            return False
+
+        shutil.move(f"{temp_folder}/new.zip", new_backup_zip)
+
+        return True
+
+def zip_method(world, zip_folder, auto):
+    return (world_7z(world, zip_folder, auto) if use_7z else zip_world(world, zip_folder))
+
 def close():
     global running, timer
     running = False
@@ -50,14 +110,23 @@ def close():
     backup_lock.release()
 
 def set_environment(server_config):
-    global backup_folder, auto_backup_folder, world_folder, universe_name, world_name
-    backup_folder = path.join(server_config['server-root'], 'backups')
-    auto_backup_folder = path.join(backup_folder, 'auto')
-    world_folder = server_config['world-root']
-    universe_name = server_config['universe']
-    world_name = server_config['world']
+    global backup_folder, auto_backup_folder, world_folder, universe_name, world_name, use_7z, fast_backup, backup_method_initialized
 
-    os.makedirs(path.join(backup_folder, 'auto'), exist_ok=True)
+    if not backup_method_initialized:
+        world_folder = server_config['world-root']
+        universe_name = server_config['universe']
+        world_name = server_config['world']
+        backup_folder = path.join(server_config['server-root'], 'backups')
+        auto_backup_folder = path.join(backup_folder, 'auto')
+        
+        backup_module_data = server_config.get('module-data', {}).get('module_backup', DEFAULT_MODULE_DATA)
+        seven_zip_exe = str(backup_module_data.get('7z-path', '7z'))
+        use_7z = bool(backup_module_data.get('prefer-7z', True)) and (subprocess.call([seven_zip_exe], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT) == 0)
+        fast_backup = bool(backup_module_data.get('fast-backup', True))
+
+        backup_method_initialized = True
+
+    os.makedirs(auto_backup_folder, exist_ok=True)
 
 def pretty_time(t):
     if (t == 1): st = '1 second'
@@ -106,22 +175,28 @@ def callback(cmd, server_config, run_cmd, event_triggers):
         timer.start()
         pyprint('Backup has been scheduled to run every %s (max: %s backup%s)!' % (pretty_time(tm), amount, 's' if amount > 1 else ''))
 
-def schedule_backup(t, a, run_cmd, save_event):
-    global timer
+def truncate(max_auto_backups):
     while True:
         files = os.listdir(auto_backup_folder)
         backups = []
         for file in files:
             if file.startswith(f"{universe_name}_{world_name}_") and file.endswith('_apcbkp.zip'):
                 backups.append(file)
-        if len(backups) >= a:
+        if len(backups) > max_auto_backups:
             of = min([path.join(auto_backup_folder, f) for f in backups], key=path.getctime)
             pyprint(f"Deleted oldest backup: {of}", 0)
             os.remove(of)
         else:
             break
 
+def schedule_backup(t, a, run_cmd, save_event):
+    global timer
+
     make_backup(run_cmd, save_event, True)
+    
+    # Truncate afterwards so 7z can fully utilize other backup for quick backups
+    truncate(a)
+    
     if (not (timer is None) and running):
         pyprint('Next backup is scheduled to run in %s!' % pretty_time(t))
         timer = Timer(t, schedule_backup, [t, a, run_cmd, save_event])
@@ -132,6 +207,7 @@ def root_from(world, root):
 
 def zip_world(world, backup_zip):
     # Speedup for automatic backups.
+    pyprint("Using py.stdlib: zipfile to create backup archive", 0)
     p = Process(target=multi_zip, args=[world, backup_zip, world_name])
     p.start()
     p.join()
@@ -157,6 +233,7 @@ def make_backup(run_cmd, save_event, auto=False):
         pyprint('A backup is already in progress.', 2)
         return
     backup_lock.acquire()
+    perf_start = time.time()
     if running:
         run_cmd('save-off')
         run_cmd('save-all flush')
@@ -174,11 +251,18 @@ def make_backup(run_cmd, save_event, auto=False):
         zip_name = f"{universe_name}_{world_name}_{df}.zip"
         store_location = path.join(backup_folder, zip_name)
     
-    zip_world(world_folder, store_location)
+    success = zip_method(world_folder, store_location, auto)
 
     if running:
         run_cmd('save-on')
-    pyprint('Server backup created!')
-    backup_lock.release()    
+
+    perf_end = time.time()
+    perf_elapsed = (perf_end - perf_start)
+    pyprint(f'Backup took {int(int(perf_elapsed) / 60)}m{int(perf_elapsed) % 60}s!', 1)   
+    if success:
+        pyprint('Server backup created!')
+    else:
+        pyprint('An error happened during backup creation!', 3)
+    backup_lock.release() 
 
 module = PCMod(__name__, description, patterns, callback, close, usage)

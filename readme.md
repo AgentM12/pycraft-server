@@ -17,17 +17,25 @@ Special thanks to Dinnerbone for [mcstatus](https://github.com/Dinnerbone/mcstat
    - Running a PyCraft server
      - PyCraft command line
    - Using built-in commands
-   - Using built-in modules
- 3. [Advanced Usage](#advanced)
+     - help
+     - stop | quit | exit
+     - modules
+ 3. [Built-in Modules](#modules)
+   - auto-shutdown | as
+   - backup
+   - status
+   - notify
+ 4. [Advanced Usage](#advanced)
    - Creating your own modules
      - Bare bones
      - Running server commands
      - Server Config
      - Events
 
-<a name="install"/>
+<a name="install">
 
 ## 1. Installation ##
+</a>
 
 You need Python 3.X to run the scripts.  
 Also, install mcstatus from: [https://github.com/Dinnerbone/mcstatus](https://github.com/Dinnerbone/mcstatus)
@@ -38,13 +46,15 @@ Then, installation is as simple as:
 3. (Running the server to generate a server.properties and eula, if you haven't already)
 4. Creating a configuration for this server by running `python pycraft_config.py`
 5. Running `python pycraft.py ServerName`.
+6. (Optionally) Run `python pycraft_updater.py` in conjunction with `auto-update` set to `true` in `config.json` to update all your servers.
 
 If you have any trouble, check my YouTube channel for the tutorial: [https://www.youtube.com/c/AgentMOfficial](https://www.youtube.com/c/AgentMOfficial)  
 You can contact me in the comments for any further questions.
 
-<a name="basic"/>
+<a name="basic">
 
 ## 2. Basic Usage ##
+</a>
 
 ### Setting up a PyCraft server ###
 
@@ -99,7 +109,12 @@ The basic barebones config file looks like this:
 {
     "jvm-args": [],
     "hide-gui": true,
-    "upgrade-when-update": false,
+    "upgrade-all-chunks-on-version-mismatch": false,
+    "module-data": {
+      "module_<module_name>": {
+        "module_config_setting": "Any"
+      }
+    },
     "server-list": [
         {
             "name": "ServerName",
@@ -110,7 +125,7 @@ The basic barebones config file looks like this:
             "description": "Test server for the development of PyCraft.",
             "auto-update": false,
             "auto-restart": false,
-            "auto-save": true,
+            "read-only": false,
             "initialize": [
                 "modules list",
                 "/say This message will appear when the server is ready."
@@ -122,30 +137,32 @@ The basic barebones config file looks like this:
 
 These config settings apply to every server configuration that is run. For any specific server configuration settings, apply them in "server-list" under the server for which you want to apply that config.
 
-- `jvm-args`: A list of arguments to pass to the java virtual machine (to increase RAM for example)
-- `hide-gui`: Hide the server console window from popping up.
-- `upgrade-when-update`: If the server should upgrade/optimize chunks when it starts up.
+- `jvm-args` (list\<str\>): A list of str arguments to pass to the java virtual machine (to increase RAM for example)
+- `hide-gui` (bool): Hide the server console window from popping up.
+- `upgrade-all-chunks-on-version-mismatch` (bool): If the server should upgrade/optimize chunks when it has recently been updated to a different version.
+- `module-data` (dict): Any custom configuration settings used by modules. The convention is to use `module_<module_name>` for the key to properly namespace settings. `shared` could be used for any config settings shared between modules.
+<!--"upgrade-all-chunks-on-version-mismatch" will probably be moved to server specific config-->
 
-<!--"upgrade-when-update" will probably be moved to server specific config-->
 
-- `server-list`: A list of all server configurations. Each server must have the following keys:
- - `name`: The exact same name as the server folder (server.jar is in this folder)
- - `universe`: The name of the universe (location of all server worlds).
- - `world`: The name of the world.
- - `version`: The type of version the server runs on (for auto updates), can be "release" or "snapshot", "custom" if you don't want to use auto-updates, or if using modded versions.
- - `port`: The server port to use. Note that the server will run on port 25565 if this isn't specified. It will NOT use the port specified in server.properties, this is completely ignored.
- - `description`: Human readable description for what the server is for.
- - `auto-update`: For 'release' or 'snapshot' versions, will automatically check for updates and apply them to the server when the server is booted up.
- - `auto-restart`: If the server should automatically restart when it crashes (not when it gracefully closes)
- - `read-only`: If the map loaded should be saved to. If this is turned off, the server will make a temporary copy of the world that is selected. `<WORLDNAME_pycraft_copy>` (overriding the previous one). This is useful when you want to run minigames or custom maps that need to be in pristine condition when you first start it. The server will not reset the map when it closed due to a crash, this to preserve the state. You can also just save the copy under a different name to keep progress, but then why are you using read-only anyways?
- - `initialize`: A list of commands ran at server startup. Commands that start with a `/` are server commands such as `/say`, `/give`, etc. Other commands are module commands such as `modules list` (to list all active modules) (for example setting automatic shutdown and backups, or to send a nice log message, or other stuff)
+- `server-list` (list\<dict\>): A list of all server configurations. Each server must have the following keys:
+  - `name` (str): The exact same name as the server folder (server.jar is in this folder)
+  - `universe` (str): The name of the universe (location of all server worlds).
+  - `world` (str): The name of the world.
+  - `version` (str): The type of version the server runs on (for auto updates), can be "release" or "snapshot", "custom" if you don't want to use auto-updates, or if using modded versions.
+  - `port` (int\<0-65536\>): The server port to use. Note that the server will run on port 25565 if this isn't specified. It will NOT use the port specified in server.properties, this is completely ignored.
+  - `description` (str): Human readable description for what the server is for.
+  - `auto-update` (bool): For 'release' or 'snapshot' versions, will automatically check for updates and apply them to the server when the server is booted up. **`Note`**: This setting is not checked by `pycraft.py` but only by the `pycraft_updater.py`. You may run the updater directly before the server each time to make use of this feature effectively.
+  - `auto-restart` (bool): *`Not yet implemented`*; If the server should automatically restart when it crashes (not when it gracefully closes)
+  - `read-only` (bool): *`Not yet implemented`*; If the map loaded should be saved to. If this is turned on, the server will make a temporary copy of the world that is selected. `<WORLDNAME_pycraft_copy>` (overriding the previous one). This is useful when you want to run minigames or custom maps that need to be in pristine condition when you first start it. The server will not reset the map when it closed due to a crash, this to preserve the state. You can also just save the copy under a different name to keep progress, but then why are you using read-only anyways?
+  - `initialize` (list\<str\>): A list of commands ran at server startup. Commands that start with a `/` are server commands such as `/say`, `/give`, etc. Other commands are module commands such as `modules list` (to list all active modules) (for example setting automatic shutdown and backups, or to send a nice log message, or other stuff)
+  - `__comment_<anything>`: Comments, useful for reading configurations as a human, but it doesn't really do anything for us computers.
 
 ### Running a PyCraft server ###
 
 #### PyCraft command line ####
 You can start the PyCraft server from the command line using:
-``` python
-python pycraft.py <YourServerName>
+```bat
+python pycraft.py [YourServerName]
 ```
 If you want you can simply put the line above in a windows batch file (server.bat) and run it by right clicking. (For linux/mac you can use a .sh file)
 
@@ -158,7 +175,7 @@ Use this command to view help of all available commands and modules.
 - `help`: To get an overview of all commands
 - `help <MODULE> [subcommands]`: Show the help of MODULE, with optional 'subcommands' for more detailed info.
 
-#### stop|quit|exit ####
+#### stop | quit | exit ####
 You can use any of those 3 commands to gracefully stop the server.
 
 *This command takes no arguments.*
@@ -169,10 +186,14 @@ Use this command to manage modules.
 - `modules list`: List all active modules.
 - `modules reload`: Reload all modules (any found in 'modules' folder will be available for usage)
 
-### Using built-in modules ###
-The built-in modules are not strictly required, but are vitally useful that they are included with every shipment of PyCraft.
+<a name="modules">
 
-#### auto-shutdown|as ####
+## 3. Built-in Modules ##
+</a>
+
+The built-in modules are not strictly required, but are vital that they are included with every shipment of PyCraft.
+
+### auto-shutdown | as ###
 This command can be used to manage automatic shutdown of the server.
 **It will also shut down the computer if HARD is specified.**
 
@@ -189,7 +210,7 @@ The shutdown thread will query the server for the amount of players online, for 
 poll_delay = max(10, min(t // 10, 120))
 ```
 
-#### backup ####
+### backup ###
 This command handles backups. There are 2 types of backups, manual backups and automatic backups. They are stored separately.
 
 Manual backups are stored under `<SERVER FOLDER>/backups`.  
@@ -202,15 +223,46 @@ Automatic backups are stored under `<SERVER FOLDER>/backups/auto`.
 The name of the resulting zipfile backup will be: `<universe>_<world>_<date>_<time>.zip`  
 Automatic backups will have the name: `<universe>_<world>_<date>_<time>_apcbkp.zip`
 
-**Note that making a backup can take a while and during a backup, auto-saving is turned off. The absolute bare minimum backup-time is therefore 5 minutes, 30 minutes or more is advised.** <!--Currently, the zipping is not smart and will include all files, not just the new/changed/deleted files.-->
+**Note that making a backup could take a while and during a backup, auto-saving is turned off. The absolute bare minimum backup-time is therefore 2 minutes, 30 minutes or more is advised. However, using 7z combined with fast-backups, backing up may be faster.** <!--Currently, the zipping is not smart and will include all files, not just the new/changed/deleted files. However using 7z quick times like 15s for 2 to 3 GB can be achieved easily-->
 
-**Also note that a backup takes quite some space, especially for large worlds. Therefore it is recommended to keep the total amount of automatic backups around 4 max. You can make as many manual backups of course.**
+**Also note that a backup takes quite some space, especially for large worlds. Therefore it is recommended to keep the total amount of automatic backups around 4 max. You can make as many manual backups as you'd like of course.**
 
 *The server will NOT automatically back up any worlds when the version is updated.* <!--Make sure to make a backup before updating to a newer version automatically.-->
 
-<a name="advanced"/>
+#### 7z assisted backups ####
+Some configuration options exist to increase the efficiency of backups using a third party tool: 7-Zip. (Not affiliated)
 
-## 3. Advanced Usage ##
+* `7z-path`
+  * The path to your 7z command line executable. (or simply leave it out if 7z is on your path)
+
+* `prefer-7z`
+  * Tries to use 7z over the standard backup method (if it can succesfully locate the executable).
+
+* `fast-backup`
+  * Requires 7z utilization. If a previous backup file can be found in the backups directory, it will be used as a basis for the new backup. This can speed up backups significantly for large worlds with only few modifications. (Basically skips: any regions that you haven't loaded/unmodified files)
+
+An example setup in the config.json:
+
+```json
+"module-data": {
+  "module_backup": {
+    "prefer-7z": true,
+    "fast-backup": true,
+    "7z-path": "C:\\Program Files\\7-Zip\\bin\\7z.exe"
+  }
+}
+```
+
+### status ###
+A simple wrapper for mcstatus. Displays some useful server information such as: ping, version, description, players and query. (if query is enabled)
+
+### notify ###
+A simple tool to make the console window go *BEEP* whenever certain criteria are met, such as: someone entering the server, someone leaving the server, specific chat messages, etc.
+
+<a name="advanced">
+
+## 4. Advanced Usage ##
+</a>
 
 ### Creating your own modules ###
 To start creating your own module, create a new file `<nameHere>.py` under `modules`. Then edit it with the editor of your likings. You will need to know a little bit of python and at least the bare bones (boilerplate) code given below to start.
@@ -283,11 +335,38 @@ e.g. `{'done': event_trigger}`
 
 The keys for events include:
 
-- done: Triggers when the server is done loading and is ready to receive commands.
-- save: Triggers when the server is saved using save-all.
-- stop: Triggers when the server is stopped. (for shutdown hooks only, spawn a thread waiting for this event.)
-- join: Triggers when a player joins the server.
-- leave: Triggers when a player leaves the server.
+- `done`: Triggers when the server is done loading and is ready to receive commands.
+- `save`: Triggers when the server is saved using save-all.
+- `stop`: Triggers when the server is stopped. (for shutdown hooks only, spawn a thread waiting for this event.)
+- `join`: Triggers when a player joins the server.
+- `leave`: Triggers when a player leaves the server.
+- `chat`: Triggers on any chat message (starting with \<NAME\>)
+- `server-chat`: Triggers on any chat message sent by the SERVER ONLY. (or a player named Server, be careful, don't give them '/say' access)
+- `emote`: Triggers on all emotes (lines starting with *).
+- `any`: Triggers on anything, useful for partially regexxing.
 
 `event_trigger.data` will contain the raw chat message that triggered this event.
 You can only use event_trigger.data somewhat reliably just after the `event_trigger.event.wait()` call.
+
+#### Module Data ####
+You may include special config keys to be used in config.json. By default, the `server_config` will pass these config values to all active modules.
+
+It should be used as stated before:
+
+> `module-data`: Dict of any custom configuration settings used by modules. The convention is to use `module_<module_name>` for the key to properly namespace settings. `shared` could be used for any config settings shared between modules.
+
+An example of some module data can be seen below:
+
+```json
+"module-data": {
+  "module_foo": {
+    "key": "value",
+    "bar": true,
+    "baz": 123
+  }
+}
+```
+
+You can then access these values through `server_config["module_foo"]["key"]`, `server_config["module_foo"]["bar"]`, etc.
+
+Make sure to validate this data and types yourself.

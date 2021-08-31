@@ -177,6 +177,11 @@ def obtain_launch_code(config, args):
 	expect_type('port', port, int)
 	qport = configure('query-port', try_get([int(server_properties.get('query.port'))], default=25565))
 	expect_type('query-port', qport, int)
+	module_data = config.get('module-data', {})
+	expect_type('module-data', module_data, dict)
+
+	# Give modules access to their module data.
+	server_config['module-data'] = module_data
 
 	# Convenience locations (stored in RAM only)
 	configure('server-root', server_jar_location)
