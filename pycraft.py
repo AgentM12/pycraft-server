@@ -152,6 +152,10 @@ def configure(key, value):
 
 def obtain_launch_code(config, args):
 	global server_config, server_properties, server_jar
+
+	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default="java")
+	expect_type('java-executable', java_executable, str)
+
 	jvm_arguments = try_get([["-" + a for a in args.jvm_arguments], config.get('jvm-args')], none_values=[None, []], default=[])
 	expect_type('jvm-args', jvm_arguments, list)
 	
@@ -171,7 +175,7 @@ def obtain_launch_code(config, args):
 	expect_type('world', world, str)
 	nogui = config.get('hide-gui', True)
 	expect_type('hide-gui', nogui, bool)
-	forceupgrade = config.get('upgrade-all-chunks-on-version-mismatch')
+	forceupgrade = config.get('upgrade-all-chunks-on-version-mismatch', False)
 	expect_type('upgrade-all-chunks-on-version-mismatch', forceupgrade, bool)
 	port = configure('port', try_get([server_config.get('port'), int(server_properties.get('server-port'))], default=25565))
 	expect_type('port', port, int)
@@ -188,7 +192,7 @@ def obtain_launch_code(config, args):
 	configure('world-root', path.join(path.join(server_jar_location, universe), world))
 
 	server_argument_list = server_args(universe, world, nogui, forceupgrade, port)
-	return ['java'] + jvm_arguments + ['-jar', 'server.jar'] + server_argument_list
+	return [java_executable] + jvm_arguments + ['-jar', 'server.jar'] + server_argument_list
 
 def launch_server(name, launch_code):
 	wd = os.getcwd()

@@ -1,4 +1,5 @@
 {
+    "java-executable": "java",
     "jvm-args": [
         "-Xms2048M",
         "-Xmx2048M"
