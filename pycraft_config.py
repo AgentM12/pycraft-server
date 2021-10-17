@@ -22,7 +22,9 @@ def write_config(data):
 
 def default_config():
     config = {
+        'java-executable': 'java',
         'jvm-args': [],
+        "module-data": {},
         'hide-gui': True,
         'upgrade-all-chunks-on-version-mismatch': False,
         'server-list': []
@@ -41,6 +43,13 @@ def main():
         nonlocal running
         running = False
 
+    def modify_java_exe():
+        nonlocal config
+        print('')
+        print(' === Current java-executable ===\n%s' % config['java-executable'])
+        print('')
+        config['java-executable'] = input('Modify java-executable: ').strip()
+
     def modify_jvm_args():
         nonlocal config, running
 
@@ -56,9 +65,8 @@ def main():
             c = input('> ')
             cl = c.lower()
             
-            if cl == 'exit' or cl == 'quit':
-                running = False
-                return
+            if cl == 'exit' or cl == 'quit' or cl == 'q':
+                return stop()
             if cl.startswith('back') or len(c.strip()) == 0:
                 return
             if cl.startswith('remove '):
@@ -118,9 +126,8 @@ def main():
             c = input('> ')
             cl = c.lower()
             
-            if cl == 'exit' or cl == 'quit':
-                running = False
-                return
+            if cl == 'exit' or cl == 'quit' or cl == 'q':
+                return stop()
             if cl.startswith('back') or len(c.strip()) == 0:
                 return
             if cl.startswith('add '):
@@ -149,7 +156,7 @@ def main():
             c = input('> ')
             cl = c.lower()
             
-            if cl == 'exit' or cl == 'quit':
+            if cl == 'exit' or cl == 'quit' or cl == 'q':
                 running = False
                 return
             if cl.startswith('back') or len(c.strip()) == 0:
@@ -246,6 +253,7 @@ def main():
 
     functions = [
         stop,
+        modify_java_exe,
         modify_jvm_args,
         toggle_hide_gui,
         toggle_upgrade_when_update,
@@ -258,16 +266,17 @@ def main():
     while(running):
         print('')
         print('Server config options: ')
-        print('- 1: Modify "jvm-args" (%s)' % config['jvm-args']) 
-        print('- 2: Toggle "hide-gui" (%s)' % config['hide-gui'])
-        print('- 3: Toggle "optimize-on-startup" (%s)' % config['upgrade-all-chunks-on-version-mismatch'])
-        print('- 4: View/Modify "server-list"')
-        print('- quit|exit: Exit this tool at any time.')
+        print(f'- 1: Modify "java-executable" ({config["java-executable"]})')
+        print(f'- 2: Modify "jvm-args" ({config["jvm-args"]})')
+        print(f'- 3: Toggle "hide-gui" ({config["hide-gui"]})')
+        print(f'- 4: Toggle "optimize-on-startup" ({config["upgrade-all-chunks-on-version-mismatch"]})')
+        print('- 5: View/Modify "server-list"')
+        print('- quit|exit|q: Exit this tool at any time.')
         
         try:
             s = input('> ')
-            if s.lower() == 'exit' or s.lower() == 'quit':
-                running = False
+            if s.lower() == 'exit' or s.lower() == 'quit' or s.lower() == 'q':
+                stop()
             else:
                 c = int(s)
                 if c < 0:
