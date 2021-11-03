@@ -40,29 +40,35 @@ def server_status(port, variant):
     if variant is None:
         variant = 'status'
     try:
-        if variant == 'ping' or variant == 'status' or variant == 'query':
+        if variant == 'ping' or variant == 'status' or variant == 'query' or variant == 'test':
             server = MinecraftServer('127.0.0.1', port)
             if variant == 'ping':
                 pyprint("Ping: %sms" % server.ping())
-                return
-            if variant == 'status':
+            elif variant == 'status':
                 s = server.status()
                 f = 'x' if s.favicon is None else '^_^'
+                description = format_strip(s.description) if isinstance(s.description, str) else format_strip(s.description['text'])
+                sample = s.players.sample
+                if sample is None:
+                    if s.players.online > 0:
+                        sample = "<Hidden>"
+                    else:
+                        sample = "<None>"
                 pyprint("Status returned:\n"
                         " - ping: %s ms [%s]\n"
                         " - version: %s (protocol %s)\n"
                         " - description: %s\n"
-                        " - players: %s/%s" % (s.latency, f, s.version.name, s.version.protocol, format_strip(s.description['text']), s.players.online, s.players.max))
-                return
-            if variant == 'query':
+                        " - players (%s/%s): %s" % (s.latency, f, s.version.name, s.version.protocol, description, s.players.online, s.players.max, sample))
+            elif variant == 'query':
                 s = server.query()
                 pyprint("Query returned:\n"
+                        " - game: %s (%s)\n"
+                        " - ip: %s:%s\n"
                         " - version: %s (%s)\n"
                         " - description: %s\n"
                         " - map: %s\n"
                         " - plugins: %s\n"
-                        " - players: %s/%s %s" % (s.software.version, s.software.brand, format_strip(s.motd), s.map, s.software.plugins, s.players.online, s.players.max, s.players.names))
-                return
+                        " - players (%s/%s): %s" % (s.raw['game_id'], s.raw['gametype'], s.raw['hostip'], s.raw['hostport'], s.software.version, s.software.brand, format_strip(s.motd), s.map, s.software.plugins, s.players.online, s.players.max, s.players.names))
     except ConnectionRefusedError:
         pyprint("Could not connect to the server!", 3)
     except ConnectionResetError:
