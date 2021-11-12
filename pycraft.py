@@ -264,13 +264,20 @@ def handle_events(message):
 			et.event.clear()
 
 def perform_command(cmd, stdin):
+	global running
 	cmd_parts = cmd.split()
 	key, sub = pu.next_cmd(cmd_parts)
 
 	# Built-in
 	if (key == 'exit' or key == 'quit' or key == 'stop'):
-		if pu.max_cmd_len(sub, 0, pyprint): return
-		stdin.write('/stop\n')
+		if len(sub) > 0:
+			key2, sub2 = pu.next_cmd(sub)
+			if pu.max_cmd_len(sub2, 0, pyprint): return
+			if (key2 == 'FORCE'):
+				stdin.write('/stop\n')
+				running = False
+		else:
+			stdin.write('/stop\n')
 		return
 	if (key == 'help'):
 		if len(sub) > 0:
@@ -312,7 +319,7 @@ def server_version_info():
 				verj = json.load(f)
 				return f"Version: {verj['name']}"
 		except:
-			verj = "1.11"
+			verj = "Unknown"
 			return f"Version: {verj}"
 
 
