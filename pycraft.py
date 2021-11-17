@@ -153,18 +153,21 @@ def configure(key, value):
 def obtain_launch_code(config, args):
 	global server_config, server_properties, server_jar
 
-	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default="java")
-	expect_type('java-executable', java_executable, str)
-
-	jvm_arguments = try_get([["-" + a for a in args.jvm_arguments], config.get('jvm-args')], none_values=[None, []], default=[])
-	expect_type('jvm-args', jvm_arguments, list)
-	
 	server_name = args.server_name
 	server_config = find_server_config(server_name, config['server-list'])
 	server_jar_location = path.join(servers_location, server_name)
 	server_jar = path.join(server_jar_location, 'server.jar')
 	if not path.exists(server_jar):
 		raise Exception(f"[Config] Could not find the server located at: {server_jar}")
+
+	_, java_component = server_version_info()
+	default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
+	
+	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default=default_java_path)
+	expect_type('java-executable', java_executable, str)
+
+	jvm_arguments = try_get([["-" + a for a in args.jvm_arguments], config.get('jvm-args')], none_values=[None, []], default=[])
+	expect_type('jvm-args', jvm_arguments, list)
 
 	server_properties = get_server_properties(server_jar_location)
 
@@ -274,10 +277,16 @@ def perform_command(cmd, stdin):
 			key2, sub2 = pu.next_cmd(sub)
 			if pu.max_cmd_len(sub2, 0, pyprint): return
 			if (key2 == 'FORCE'):
-				stdin.write('/stop\n')
+				try:
+					stdin.write('/stop\n')
+				except:
+					pass
 				running = False
 		else:
-			stdin.write('/stop\n')
+			try:
+				stdin.write('/stop\n')
+			except:
+				pass
 		return
 	if (key == 'help'):
 		if len(sub) > 0:
@@ -317,10 +326,9 @@ def server_version_info():
 		try:
 			with z.open("version.json") as f:
 				verj = json.load(f)
-				return f"Version: {verj['name']}"
+				return (verj['name'], verj['java_component'])
 		except:
-			verj = "Unknown"
-			return f"Version: {verj}"
+			return ("Unknown", "jre-legacy")
 
 
 def ask_server_type(config):
@@ -367,7 +375,8 @@ def main():
 		args.server_name = x
 	
 	launch_code = obtain_launch_code(config, args)
-	print(server_version_info())
+	mc_version, _ = server_version_info()
+	print(f"Version: {mc_version}")
 
 	launch_str = ' '.join(launch_code)
 	server_name = args.server_name

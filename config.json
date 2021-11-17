@@ -1,5 +1,5 @@
 {
-    "java-executable": "java",
+    "java-executable": "",
     "jvm-args": [
         "-Xms2048M",
         "-Xmx2048M"
@@ -26,7 +26,7 @@
             "name": "Private",
             "version": "snapshot",
             "description": "For private multiplayer.",
-            "auto-update": false,
+            "auto-update": true,
             "auto-restart": true,
             "read-only": false,
             "initialize": []
@@ -55,7 +55,7 @@
             "name": "Minigame",
             "version": "snapshot",
             "description": "Minigames",
-            "auto-update": true,
+            "auto-update": false,
             "auto-restart": true,
             "read-only": true,
             "initialize": []
