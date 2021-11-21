@@ -23,6 +23,15 @@
             "initialize": []
         },
         {
+            "name": "Skyblock",
+            "version": "release",
+            "description": "Private Skyblock",
+            "auto-update": true,
+            "auto-restart": true,
+            "read-only": false,
+            "initialize": []
+        },
+        {
             "name": "Private",
             "version": "snapshot",
             "description": "For private multiplayer.",

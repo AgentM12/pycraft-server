@@ -62,8 +62,8 @@ signature_join = re.compile(base_pattern % ('UUID of player %s is [0-9a-f]{8}-[0
 signature_leave = re.compile(base_pattern % ('%s lost connection: .*$' % name_pattern))
 signature_chat = re.compile(base_pattern % '<.*?> .*')
 signature_server_chat = re.compile(base_pattern % '[Server] .*') # Not safe. May also trigger on entities or commandblocks named 'Server' performing the /say command.
-signature_any = re.compile(base_pattern % '.*')
 signature_emote = re.compile(base_pattern % '\\* .*')
+signature_any = re.compile(base_pattern % '.*')
 
 class EventTrigger:
 	def __init__(self, signature):
@@ -151,7 +151,7 @@ def configure(key, value):
 	return value
 
 def obtain_launch_code(config, args):
-	global server_config, server_properties, server_jar
+	global server_config, server_properties, server_jar, server_version
 
 	server_name = args.server_name
 	server_config = find_server_config(server_name, config['server-list'])
@@ -160,7 +160,17 @@ def obtain_launch_code(config, args):
 	if not path.exists(server_jar):
 		raise Exception(f"[Config] Could not find the server located at: {server_jar}")
 
-	_, java_component = server_version_info()
+	with zipfile.ZipFile(server_jar) as z:
+		try:
+			with z.open("version.json") as f:
+				server_version = json.load(f)
+		except:
+			server_version = {
+			    "name": "Unknown",
+			    "java_component": "jre-legacy"
+			}
+
+	java_component = server_version['java_component']
 	default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
 	
 	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default=default_java_path)
@@ -321,16 +331,6 @@ def initial_commands(stdin):
 		if s.startswith('/'): stdin.write('%s\n' % s[1:])
 		elif len(s) > 0: perform_command(s, stdin)
 
-def server_version_info():
-	with zipfile.ZipFile(server_jar) as z:
-		try:
-			with z.open("version.json") as f:
-				verj = json.load(f)
-				return (verj['name'], verj['java_component'])
-		except:
-			return ("Unknown", "jre-legacy")
-
-
 def ask_server_type(config):
 	while True:
 		choices = []
@@ -375,8 +375,7 @@ def main():
 		args.server_name = x
 	
 	launch_code = obtain_launch_code(config, args)
-	mc_version, _ = server_version_info()
-	print(f"Version: {mc_version}")
+	print(f"Version: {server_version['name']}")
 
 	launch_str = ' '.join(launch_code)
 	server_name = args.server_name
