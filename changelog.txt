@@ -1,0 +1,17 @@
+PYCRAFT CHANGELOG
+- last update: 10 Dec, 2021
+
+This changelog is an incomplete history of minor versions.
+Smaller patches are directly applied to minor versions. Therefore, there may be differences between two instances of version 1.1.
+The minor versioning is only updated when there's a critical update for security, older versions than the latest should probably not be used.
+
+===================== LATEST STABLE =====================
+
+=== 1.1 ===
+ - Apply patch for CVE-2021-44228: Log4j RCE 0-day mitigation through custom log4j configurations.
+
+
+===================== HISTORICAL =====================
+
+=== 1.0 ===
+ - Initial version (now insecure to use)

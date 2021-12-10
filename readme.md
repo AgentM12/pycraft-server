@@ -4,7 +4,7 @@ Pycraft Server is a collection of tools that can be used while running a server.
 PyCraft Server is a bundle of python scripts written by [AgentM](https://www.youtube.com/c/AgentMOfficial)  
 Special thanks to Dinnerbone for [mcstatus](https://github.com/Dinnerbone/mcstatus)
 
-**Documentation version: 1.0**  
+**Documentation version: 1.1**  
 **Script version: `<can be seen when running server.py>`**  
 *Make sure these match before contacting me.*
 
@@ -31,6 +31,10 @@ Special thanks to Dinnerbone for [mcstatus](https://github.com/Dinnerbone/mcstat
      - Running server commands
      - Server Config
      - Events
+ 5. [Extended Functionality](#extended)
+   - Features
+     - Auto updater
+   - Security Patches
 
 <a name="install">
 
@@ -151,7 +155,7 @@ These config settings apply to every server configuration that is run. For any s
   - `version` (str): The type of version the server runs on (for auto updates), can be "release" or "snapshot", "custom" if you don't want to use auto-updates, or if using modded versions.
   - `port` (int\<0-65536\>): The server port to use. Note that the server will run on port 25565 if this isn't specified. It will NOT use the port specified in server.properties, this is completely ignored.
   - `description` (str): Human readable description for what the server is for.
-  - `auto-update` (bool): For 'release' or 'snapshot' versions, will automatically check for updates and apply them to the server when the server is booted up. **`Note`**: This setting is not checked by `pycraft.py` but only by the `pycraft_updater.py`. You may run the updater directly before the server each time to make use of this feature effectively.
+  - `auto-update`<a name="autoupdates"> </a>(bool): For 'release' or 'snapshot' versions, will automatically check for updates and apply them to the server when the server is booted up. **`Note`**: This setting is not checked by `pycraft.py` but only by the `pycraft_updater.py`. You may run the updater directly before the server each time to make use of this feature effectively.
   - `auto-restart` (bool): *`Not yet implemented`*; If the server should automatically restart when it crashes (not when it gracefully closes)
   - `read-only` (bool): *`Not yet implemented`*; If the map loaded should be saved to. If this is turned on, the server will make a temporary copy of the world that is selected. `<WORLDNAME_pycraft_copy>` (overriding the previous one). This is useful when you want to run minigames or custom maps that need to be in pristine condition when you first start it. The server will not reset the map when it closed due to a crash, this to preserve the state. You can also just save the copy under a different name to keep progress, but then why are you using read-only anyways?
   - `initialize` (list\<str\>): A list of commands ran at server startup. Commands that start with a `/` are server commands such as `/say`, `/give`, etc. Other commands are module commands such as `modules list` (to list all active modules) (for example setting automatic shutdown and backups, or to send a nice log message, or other stuff)
@@ -370,3 +374,26 @@ An example of some module data can be seen below:
 You can then access these values through `server_config["module_foo"]["key"]`, `server_config["module_foo"]["bar"]`, etc.
 
 Make sure to validate this data and types yourself.
+
+<a name="extended">
+
+## 1. Extended Functionality ##
+</a>
+
+### Features ###
+
+#### Auto updater ####
+`pycraft_updater.py` is a tool that further improves QoL by allowing the server to automatically update.
+
+It can simply be run before running the main server (`pycraft.py`) by using this command:
+
+`python pycraft_updater.py`
+
+You can enable or disable automatic updates in `config.json` (see [config/auto-update](#autoupdates)). As well as set the version ("snapshot", "release" or "custom") which determine which version is newest for that lineup, either the latest snapshot, latest release or do nothing respectively. Where do nothing means the server won't be updated.
+
+### Security Patches ###
+
+#### CVE-2021-44228 ####
+A critical vulnerability in Log4j makes any Minecraft server before 1.18.1 insecure without proper measurements. PyCraft has a built-in method to mitigate the issue by patching the log4j configuration. This can be circumvented by explicitly setting either `-Dlog4j2.formatMsgNoLookups` (=true/false) or `-Dlog4j.configurationFile` (=&lt;log4j_config_file&gt;.xml) as one of the jvm arguments in the `config.json`
+
+**Note however**, that each time the server is executed, a warning will show which has to be confirmed before execution can proceed. This is at own risk and should only be used if you know what you're doing.

@@ -34,12 +34,14 @@ if DEBUG:
 	pycraft_module.log_flag |= 0b1111
 
 #GLOBALS
-pycraft_server_version = '1.0'
+# Version history: 1.0 is unsafe due to log4j error. Use 1.1+
+pycraft_server_version = '1.1'
 
 config_file = 'config.json'
 servers_location = 'servers'
 backups_location = 'backups'
 modules_location = 'modules'
+resources_location = 'resources'
 sys.path.insert(1, modules_location) # Tell python to look in the modules folder when relaoding imports.
 
 server_config = None
@@ -84,9 +86,10 @@ event_triggers = {
 	'any': EventTrigger(signature_any), # Triggers on anything, useful for partially regexxing.
 }
 
+safety = ""
 severities = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 def pyprint(string, loglevel=1):
-	print("[PyCraft/%s] %s" % (severities[loglevel], string))
+	print(f"[{safety}PyCraft/%s] %s" % (severities[loglevel], string))
 
 def arguments():
 	parser = argparse.ArgumentParser(description="Run a minecraft server with backups, shut-down hooks and possibly scripts.", epilog="Priority Order: Arguments, config.json, server.properties, DEFAULT")
@@ -150,6 +153,109 @@ def configure(key, value):
 	server_config[key] = value
 	return value
 
+# WARNING. THIS PATCH ONLY WORKS ON VANILLA JARS
+def log4j_patch(server_version, server_jar_location, jvm_arguments):
+	global safety
+
+	if (safety == "INSECURE-"):
+		print("PROCEEDING LAUNCH (INSECURE)!")
+		return
+	for arg in jvm_arguments:
+		if (arg.startswith("-Dlog4j2.formatMsgNoLookups") or arg.startswith("-Dlog4j.configurationFile")):
+			import random
+			pyprint("JVM arguments for Log4J should not be included within config.json:", 2)
+			print("  A patch for the log4J [CVE-2021-44228] vulnerability will automatically be applied for any VANILLA version.")
+			print("  For any version before 18w47b, the default mitigation chosen is to strip any malicious messages from logs.")
+			print("  If you decide to override these choices (for example for versions prior to 1.7 or modded),")
+			print("  you may still continue at the risk of your system being compromised by an outside attacker.")
+			print('')
+			print("  Are you sure you know what you're doing?")
+			security_question = f"YES I ACKNOWLEDGE {random.randint(1000, 9999)}"
+			print(f"  (To proceed, write this exact string without the quotes: '{security_question}')")
+			print('')
+			ans = input("  Proceed? > ")
+			if (ans != security_question):
+				raise Exception("Server launch has been aborted due to security violation.")
+			print("PROCEEDING LAUNCH (INSECURE)!")
+			safety = "INSECURE-"
+			return
+
+	# Snapshots will run according to this unless they are 22w+
+	log4j_jvm_patch_flags = "-Dlog4j.configurationFile=log4j2_17-111.xml"
+	patch_method = 2
+	vulnerable = True
+	safety = ""
+
+	full_release_pattern = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[_-].*)?$")
+	m = full_release_pattern.match(server_version['id'])
+	l = 0 if not m else len(m.groups())
+	if (m and l > 2):
+		major = int(m.group(1))
+		minor = int(m.group(2))
+		patch = int(m.group(2)) if (l > 3) else 0
+		if (major != 1):
+			pass
+		elif ((minor == 18 and patch > 0) or (minor > 18)):
+			vulnerable = False
+		elif (minor == 17 or (minor == 18 and patch < 1)):
+			log4j_jvm_patch_flags = "-Dlog4j2.formatMsgNoLookups=true"
+			patch_method = 0
+		elif (minor >= 12 and minor <= 16):
+			log4j_jvm_patch_flags = "-Dlog4j.configurationFile=log4j2_112-116.xml"
+			patch_method = 1
+		elif (minor >= 7 and minor <= 11):
+			log4j_jvm_patch_flags = "-Dlog4j.configurationFile=log4j2_17-111.xml"
+			patch_method = 2
+		else:
+			pass
+	else:
+		snapshot_pattern = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[_-].*)?$")
+		m = snapshot_pattern.match(server_version['id'])
+		if (m):
+			year = int(m.group(1))
+			week = int(m.group(2))
+			patch = m.group(3)
+			if (year >= 22):
+				vulnerable = False
+			elif (year == 21 and week >= 37):
+				log4j_jvm_patch_flags = "-Dlog4j2.formatMsgNoLookups=true"
+				patch_method = 0
+			elif (year >= 17 and week >= 31):
+				log4j_jvm_patch_flags = "-Dlog4j.configurationFile=log4j2_112-116.xml"
+				patch_method = 1
+			elif (year >= 13 and week >= 47):
+				log4j_jvm_patch_flags = "-Dlog4j.configurationFile=log4j2_17-111.xml"
+				patch_method = 2
+			else:
+				pass
+
+	if (vulnerable):
+		jvm_arguments.append(log4j_jvm_patch_flags)
+		
+		if (patch_method > 0):
+			if (patch_method == 2):
+				url = "https://launcher.mojang.com/v1/objects/dd2b723346a8dcd48e7f4d245f6bf09e98db9696/log4j2_17-111.xml"
+				xml_path = "log4j2_17-111.xml"
+			else:
+				url = "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml"
+				xml_path = "log4j2_112-116.xml"
+			xml_destination = os.path.join(server_jar_location, xml_path)
+			cache_path = os.path.join(resources_location, xml_path)
+			if not path.isfile(xml_destination):
+				import shutil
+				if not path.isfile(cache_path):
+					import requests
+					pyprint("Downloading log4j patch from mojang servers...")
+					chunk_size=1024
+					r = requests.get(url, stream=True)
+					os.makedirs(resources_location, exist_ok=True)
+					with open(cache_path, 'wb') as fd:
+						for chunk in r.iter_content(chunk_size=chunk_size):
+							fd.write(chunk)
+				pyprint("Patching log4j...")
+				shutil.copy(cache_path, xml_destination)
+
+
 def obtain_launch_code(config, args):
 	global server_config, server_properties, server_jar, server_version
 
@@ -166,9 +272,12 @@ def obtain_launch_code(config, args):
 				server_version = json.load(f)
 		except:
 			server_version = {
-			    "name": "Unknown",
-			    "java_component": "jre-legacy"
+				"id": "Unknown",
+				"name": "Unknown",
+				"java_component": "jre-legacy"
 			}
+	if not 'java_component' in server_version:
+		server_version['java_component'] = "jre-legacy"
 
 	java_component = server_version['java_component']
 	default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
@@ -178,6 +287,10 @@ def obtain_launch_code(config, args):
 
 	jvm_arguments = try_get([["-" + a for a in args.jvm_arguments], config.get('jvm-args')], none_values=[None, []], default=[])
 	expect_type('jvm-args', jvm_arguments, list)
+
+	# Log4j security patch
+	log4j_patch(server_version, server_jar_location, jvm_arguments)
+	#raise Exception("MANUAL END")
 
 	server_properties = get_server_properties(server_jar_location)
 
