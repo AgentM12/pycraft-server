@@ -280,8 +280,12 @@ def obtain_launch_code(config, args):
 		server_version['java_component'] = "jre-legacy"
 
 	java_component = server_version['java_component']
-	default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
-	
+	default_java_path = f"C:\\Program Files (x86)\\Minecraft Launcher\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
+	if not (os.path.exists(default_java_path)):
+		default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
+	if not (os.path.exists(default_java_path)):
+		raise Exception(f"The default java path could not be found.\nPlease specify a path to a valid java binary.")
+
 	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default=default_java_path)
 	expect_type('java-executable', java_executable, str)
 
