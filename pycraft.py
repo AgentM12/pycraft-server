@@ -528,7 +528,12 @@ def main():
 	print_thread.start()
 
 	while (process.poll() == None):
-		message = process.stdout.readline().rstrip('\r\n')
+		try:
+			message = process.stdout.readline().rstrip('\r\n')
+		except UnicodeDecodeError:
+			message = "The message contains unknown unicode characters that can't be decoded with utf-8"
+			#TODO fix this properly.
+
 		if len(message.strip()) != 0:
 			print(message)
 			handle_events(message)
