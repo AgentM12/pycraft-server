@@ -2,7 +2,8 @@
     "java-executable": "",
     "jvm-args": [
         "-Xms2048M",
-        "-Xmx2048M"
+        "-Xmx2048M",
+        "-Dfile.encoding=UTF8"
     ],
     "module-data": {
         "module_backup": {
@@ -16,11 +17,23 @@
         {
             "name": "Release",
             "version": "release",
-            "description": "Latest release.",
+            "description": "Latest Release",
             "auto-update": true,
             "auto-restart": true,
             "read-only": false,
             "initialize": []
+        },
+        {
+            "name": "BotPandas",
+            "version": "release",
+            "description": "Panda Bot Server",
+            "auto-update": false,
+            "auto-restart": true,
+            "read-only": false,
+            "initialize": [
+                "backup schedule 1h 2",
+                "as idle 10m HARD"
+            ]
         },
         {
             "name": "Skyblock",
@@ -34,7 +47,7 @@
         {
             "name": "Private",
             "version": "snapshot",
-            "description": "For private multiplayer.",
+            "description": "Private Multiplayer",
             "auto-update": true,
             "auto-restart": true,
             "read-only": false,
@@ -43,7 +56,7 @@
         {
             "name": "Research",
             "version": "release",
-            "description": "For research purposes.",
+            "description": "For research purposes",
             "auto-update": true,
             "auto-restart": false,
             "read-only": false,
@@ -54,7 +67,7 @@
         {
             "name": "Snapshot",
             "version": "snapshot",
-            "description": "Latest snapshot.",
+            "description": "Latest Snapshot",
             "auto-update": true,
             "auto-restart": true,
             "read-only": false,

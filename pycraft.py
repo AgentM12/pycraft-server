@@ -3,10 +3,12 @@
 ## Handles a minecraft server.
 import pycraft_utils as pu
 
+import modified_utf8 as utf8m
 import pycraft_module
 import subprocess
 import importlib
 import argparse
+import locale
 import glob
 import json
 import time
@@ -44,6 +46,7 @@ modules_location = 'modules'
 resources_location = 'resources'
 sys.path.insert(1, modules_location) # Tell python to look in the modules folder when relaoding imports.
 
+encoding_inbound = None
 server_config = None
 server_properties = None
 queue_lock = Lock()
@@ -66,6 +69,8 @@ signature_chat = re.compile(base_pattern % '<.*?> .*')
 signature_server_chat = re.compile(base_pattern % '[Server] .*') # Not safe. May also trigger on entities or commandblocks named 'Server' performing the /say command.
 signature_emote = re.compile(base_pattern % '\\* .*')
 signature_any = re.compile(base_pattern % '.*')
+
+signature_encoding = re.compile("-Dfile\\.encoding=(.*)")
 
 class EventTrigger:
 	def __init__(self, signature):
@@ -257,7 +262,7 @@ def log4j_patch(server_version, server_jar_location, jvm_arguments):
 
 
 def obtain_launch_code(config, args):
-	global server_config, server_properties, server_jar, server_version
+	global server_config, server_properties, server_jar, server_version, encoding_inbound
 
 	server_name = args.server_name
 	server_config = find_server_config(server_name, config['server-list'])
@@ -291,6 +296,13 @@ def obtain_launch_code(config, args):
 
 	jvm_arguments = try_get([["-" + a for a in args.jvm_arguments], config.get('jvm-args')], none_values=[None, []], default=[])
 	expect_type('jvm-args', jvm_arguments, list)
+
+	# Encoding patch
+	for arg in jvm_arguments:
+		m = signature_encoding.match(arg)
+		if m:
+			encoding_inbound = m.group(1)
+			break
 
 	# Log4j security patch
 	log4j_patch(server_version, server_jar_location, jvm_arguments)
@@ -327,7 +339,7 @@ def obtain_launch_code(config, args):
 def launch_server(name, launch_code):
 	wd = os.getcwd()
 	os.chdir('%s/%s' % (servers_location, name))
-	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE, encoding='utf-8', bufsize=1, universal_newlines=True)
+	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 	os.chdir(wd)
 	return p
 
@@ -405,13 +417,13 @@ def perform_command(cmd, stdin):
 			if pu.max_cmd_len(sub2, 0, pyprint): return
 			if (key2 == 'FORCE'):
 				try:
-					stdin.write('/stop\n')
+					write_to_console(stdin, '/stop\n')
 				except:
 					pass
 				running = False
 		else:
 			try:
-				stdin.write('/stop\n')
+				write_to_console(stdin, '/stop\n')
 			except:
 				pass
 		return
@@ -436,7 +448,7 @@ def perform_command(cmd, stdin):
 	for cp in command_providers:
 		if cp.matches(key):
 			try:
-				cp.execute(sub, server_config, stdin, event_triggers)
+				cp.execute(sub, server_config, lambda msg: write_to_console(stdin, msg + "\n"), event_triggers)
 			except Exception as e:
 				pyprint('%s: Performing command: %s' % (e, cmd), 3)
 			return
@@ -445,7 +457,7 @@ def perform_command(cmd, stdin):
 def initial_commands(stdin):
 	for cmd in server_config['initialize']:
 		s = cmd.strip()
-		if s.startswith('/'): stdin.write('%s\n' % s[1:])
+		if s.startswith('/'): write_to_console(stdin, '%s\n' % s[1:])
 		elif len(s) > 0: perform_command(s, stdin)
 
 def ask_server_type(config):
@@ -475,10 +487,42 @@ def ask_server_type(config):
 			except ValueError:
 				print(f"{c} is not a valid option! (case-sensitive)")
 
-def main():
-	global running
+def write_to_console(stdin, msg):
+	'''
+	stdin: The server console stdin (in bytes mode without bufsize or encoding)
+	msg: The message as a utf-8 encoded string.
+	'''
+	utf8m_b = None
+	
+	try:
+		msg_b = msg.encode("utf-8")
+		utf8m_b = utf8m.utf8s_to_utf8m(msg_b)
+	except Exception as e:
+		pyprint(f'Failed to write to console {e}', 3)
+		return
 
-	pyprint('Version: %s' % pycraft_server_version)
+	# Write to console stdin and flush (raw bytes)
+	stdin.write(utf8m_b)
+	stdin.flush()
+
+def readline_from_console(stdout):
+	'''
+	stdout: The stdout (bytes, but encoding will be locale.getpreferredencoding())
+	'''
+	msg = None
+	try:
+		inp_b = stdout.readline()
+		msg = inp_b.decode(encoding_inbound).rstrip('\r\n')
+	except Exception as e:
+		pyprint(f'Failed to read from console {e}', 3)
+		return ""
+
+	return msg
+
+def main():
+	global running, encoding_inbound
+
+	pyprint(f'Version: {pycraft_server_version}')
 	if DEBUG: pyprint('DEBUG is enabled!')
 
 	import_tool()
@@ -493,6 +537,12 @@ def main():
 	
 	launch_code = obtain_launch_code(config, args)
 	print(f"Version: {server_version['name']}")
+
+	# This is the encoding used when reading from server console.
+	if encoding_inbound is None:
+		encoding_inbound = locale.getpreferredencoding()
+	pyprint(f'Inbound Encoding: {encoding_inbound}')
+
 
 	launch_str = ' '.join(launch_code)
 	server_name = args.server_name
@@ -515,7 +565,7 @@ def main():
 				s = ''
 				while not input_queue.empty():
 					s += input_queue.get()
-				if s.startswith('/'): process.stdin.write(s[1:])
+				if s.startswith('/'): write_to_console(process.stdin, s[1:])
 				elif len(s.strip()) > 0: perform_command(s.strip(), process.stdin)
 				read_flag = False
 				queue_lock.release()
@@ -528,11 +578,7 @@ def main():
 	print_thread.start()
 
 	while (process.poll() == None):
-		try:
-			message = process.stdout.readline().rstrip('\r\n')
-		except UnicodeDecodeError:
-			message = "The message contains unknown unicode characters that can't be decoded with utf-8"
-			#TODO fix this properly.
+		message = readline_from_console(process.stdout)
 
 		if len(message.strip()) != 0:
 			print(message)

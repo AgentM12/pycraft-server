@@ -203,7 +203,7 @@ This command can be used to manage automatic shutdown of the server.
 
 - `as`: Shows the usage of this command.
 - `as idle <TIME> [HARD]`: Schedules a shutdown when no players are online.
-- `as schedule <TIME> [HARD`: Schedules a shutdown right now. (reminds players 1m and 10s before shutdown)
+- `as schedule <TIME> [HARD]`: Schedules a shutdown right now. (reminds players 1m and 10s before shutdown)
 - `as cancel`: Cancels any schedule or idle timers.
 
 Example: `as idle 10m HARD` Will shutdown the server AND computer after nobody has been online for 10 minutes. The 10m timer is reset when a player joins. This can also be canceled completely using `as cancel`.
@@ -390,6 +390,9 @@ It can simply be run before running the main server (`pycraft.py`) by using this
 `python pycraft_updater.py`
 
 You can enable or disable automatic updates in `config.json` (see [config/auto-update](#autoupdates)). As well as set the version ("snapshot", "release" or "custom") which determine which version is newest for that lineup, either the latest snapshot, latest release or do nothing respectively. Where do nothing means the server won't be updated.
+
+#### Encoding Support ####
+Encoding for the server is by default set to your preferred locale's encoding. However, to allow correct logging of certain unicode symbols you should enable the java flag "-Dfile.encoding=UTF8". PyCraft will recognize any encoding set using this flag and use this to write text in the console window.
 
 ### Security Patches ###
 

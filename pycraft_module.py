@@ -40,14 +40,14 @@ class PCMod:
                 return True
         return False
 
-    def execute(self, subcmd, server_config, stdin, event_triggers):
+    def execute(self, subcmd, server_config, writeline_to_console, event_triggers):
         '''
         subcmd: The remaining subcommands after the matched pattern.
         server_config: The server config specific to this server, including port, name, etc.
-        stdin: The inputstream of the server, which allows writing commands to it such as say, stop, etc.
+        writeline_to_console: Function to write utf8 to server console, which allows writing commands to it such as say, stop, etc.
         event_triggers: Dict of events that can be triggered (see pycraft_server for a list of them).
         '''
-        self.callback(subcmd, server_config, lambda x: stdin.write(x + "\n"), event_triggers)
+        self.callback(subcmd, server_config, writeline_to_console, event_triggers)
 
     def pyprint(self, string, loglevel=1):
         '''
