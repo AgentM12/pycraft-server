@@ -8,6 +8,8 @@ import pycraft_module
 import subprocess
 import importlib
 import argparse
+import tempfile
+import shutil
 import locale
 import glob
 import json
@@ -128,11 +130,49 @@ def get_server_properties(server_jar_location):
 		p.load(f)
 	return p
 
+def run_server_get_defaults(server_jar_location, default_java_path):
+	pyprint("No server.properties file found! Running server in quarantined location to obtain defaults...")
+	
+	orig_jar_path = path.join(server_jar_location, 'server.jar')
+	with tempfile.TemporaryDirectory(dir=server_jar_location, ignore_cleanup_errors=True) as temp_dir_name:
+		new_jar_path = path.join(temp_dir_name, 'server.jar')
+
+		try:
+			shutil.copy(orig_jar_path, new_jar_path)
+
+			# Create eula file
+			with open(path.join(temp_dir_name, "eula.txt"), 'w+') as f:
+				f.write("eula=true\n")
+
+			# Run temp server
+			wd = os.getcwd()
+			os.chdir(temp_dir_name)
+			pyprint(" =========== Running Server in Quarantined Location to obtain default configuration =========== ")
+			subprocess.run([default_java_path] + ["-jar", "server.jar"], input="stop", encoding="UTF-8")
+			pyprint(" ========================================== Finished ========================================== ")
+			os.chdir(wd)
+
+			name_eula = "eula.txt"
+			name_server_properties = "server.properties"
+
+			# Copy the required files.
+			eula_dest = path.join(server_jar_location, name_eula)
+			if not path.exists(eula_dest):
+				shutil.copy(path.join(temp_dir_name, name_eula), eula_dest)
+
+			prop_dest = path.join(server_jar_location, name_server_properties)
+			if not path.exists(prop_dest):
+				shutil.copy(path.join(temp_dir_name, name_server_properties), prop_dest)
+		except:
+			# cleanup temp dir on error
+			shutil.rmtree(temp_dir_name)
+			raise Exception("Unable to get server.properties.")
+
 def server_args(universe, world, nogui, forceupgrade, port):
 	args = []
-	if nogui: args.append('--nogui')
+	if nogui: args.append('nogui'); args.append('--nogui')
 	if forceupgrade: args.append('--forceUpgrade')
-	if universe != '.': args.extend(['--universe', universe])
+	if universe != '.' and universe != "": args.extend(['--universe', universe])
 	args.extend(['--world', world])
 	args.extend(['--port', str(port)])
 	return args
@@ -289,7 +329,7 @@ def obtain_launch_code(config, args):
 	if not (os.path.exists(default_java_path)):
 		default_java_path = f"C:\\Program Files (x86)\\Minecraft\\runtime\\{java_component}\\windows-x64\\{java_component}\\bin\\java.exe"
 	if not (os.path.exists(default_java_path)):
-		raise Exception(f"The default java path could not be found.\nPlease specify a path to a valid java binary.")
+		raise Exception(f'The default java path "{default_java_path}" could not be found.\nPlease specify a path to a valid java binary.')
 
 	java_executable = try_get([config.get('java-executable')], none_values=[None, ""], default=default_java_path)
 	expect_type('java-executable', java_executable, str)
@@ -308,7 +348,12 @@ def obtain_launch_code(config, args):
 	log4j_patch(server_version, server_jar_location, jvm_arguments)
 	#raise Exception("MANUAL END")
 
-	server_properties = get_server_properties(server_jar_location)
+	try:
+		server_properties = get_server_properties(server_jar_location)
+	except FileNotFoundError:
+		# Attempt again after generating defaults
+		run_server_get_defaults(server_jar_location, default_java_path)
+		server_properties = get_server_properties(server_jar_location)
 
 	# Configure
 	universe = configure('universe', try_get([args.universe, server_config.get('universe')], default='worlds'))
@@ -321,7 +366,10 @@ def obtain_launch_code(config, args):
 	expect_type('upgrade-all-chunks-on-version-mismatch', forceupgrade, bool)
 	port = configure('port', try_get([server_config.get('port'), int(server_properties.get('server-port'))], default=25565))
 	expect_type('port', port, int)
-	qport = configure('query-port', try_get([int(server_properties.get('query.port'))], default=25565))
+
+	pyprint(int(try_get([server_properties.get('query.port')], default=25565)))
+	qport = configure('query-port', int(try_get([server_properties.get('query.port')], default=25565)))
+	
 	expect_type('query-port', qport, int)
 	module_data = config.get('module-data', {})
 	expect_type('module-data', module_data, dict)
@@ -331,7 +379,12 @@ def obtain_launch_code(config, args):
 
 	# Convenience locations (stored in RAM only)
 	configure('server-root', server_jar_location)
-	configure('world-root', path.join(path.join(server_jar_location, universe), world))
+
+	# Depends on universe set.
+	if universe != "":
+		configure('world-root', path.join(path.join(server_jar_location, universe), world))
+	else:
+		configure('world-root', path.join(server_jar_location, world))
 
 	server_argument_list = server_args(universe, world, nogui, forceupgrade, port)
 	return [java_executable] + jvm_arguments + ['-jar', 'server.jar'] + server_argument_list
@@ -339,7 +392,7 @@ def obtain_launch_code(config, args):
 def launch_server(name, launch_code):
 	wd = os.getcwd()
 	os.chdir('%s/%s' % (servers_location, name))
-	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+	p = subprocess.Popen(launch_code, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 	os.chdir(wd)
 	return p
 
@@ -417,13 +470,13 @@ def perform_command(cmd, stdin):
 			if pu.max_cmd_len(sub2, 0, pyprint): return
 			if (key2 == 'FORCE'):
 				try:
-					write_to_console(stdin, '/stop\n')
+					write_to_console(stdin, 'stop\n')
 				except:
 					pass
 				running = False
 		else:
 			try:
-				write_to_console(stdin, '/stop\n')
+				write_to_console(stdin, 'stop\n')
 			except:
 				pass
 		return
