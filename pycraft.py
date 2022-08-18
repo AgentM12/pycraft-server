@@ -49,7 +49,9 @@ resources_location = 'resources'
 sys.path.insert(1, modules_location) # Tell python to look in the modules folder when relaoding imports.
 
 encoding_inbound = None
+event_triggers = None
 server_config = None
+server_version = None
 server_properties = None
 queue_lock = Lock()
 read_flag = False
@@ -58,19 +60,38 @@ command_providers = []
 raw_imports = []
 read_condition = Condition()
 
-base_pattern = '(^\\[\\d{1,2}:\\d{1,2}:\\d{1,2}\\] \\[[a-zA-Z\\s]*?(?:|#\\d+)\\/[A-Z].*?\\]:) (%s)'
+date_pattern = '\\d{4}-\\d{2}-\\d{2}'
+time_pattern = '\\d{1,2}:\\d{1,2}:\\d{1,2}'
+log_level_pattern = '\\[[a-zA-Z\\s]*?(?:|#\\d+)\\/[A-Z].*?\\]'
+
+base_pattern = f'(^\\[{time_pattern}\\] {log_level_pattern}:) (%s)'
 name_pattern = '[a-zA-Z0-9_]+?' # Use this when you don't use pre-/suffixes (safer)
 ps_name_pattern = '[^<*].*' # Can be anything because of pre-/suffixes BUT disallows < and > usage. (more lenient, less safe)
 
-signature_done = re.compile(base_pattern % 'Done \\([0-9.]+s\\)! For help, type "help"')
+float_pattern = "-?[0-9]+\\.[0-9]+"
+uuid_pattern = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+startup_time_pattern = '\\([0-9.]+[nmhs]{1,2}\\)'
+
+signature_done = re.compile(base_pattern % f'Done {startup_time_pattern}! For help, type "help"')
 signature_save = re.compile(base_pattern % 'Saved the game')
 signature_stop = re.compile(base_pattern % 'Stopping server')
-signature_join = re.compile(base_pattern % ('UUID of player %s is [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' % name_pattern))
-signature_leave = re.compile(base_pattern % ('%s lost connection: .*$' % name_pattern))
-signature_chat = re.compile(base_pattern % '<.*?> .*')
+signature_join = re.compile(base_pattern % f'UUID of player {name_pattern} is {uuid_pattern}$')
+signature_leave = re.compile(base_pattern % f'{name_pattern} lost connection: .*$')
+signature_chat = re.compile(base_pattern % '<[^>]*> .*')
 signature_server_chat = re.compile(base_pattern % '[Server] .*') # Not safe. May also trigger on entities or commandblocks named 'Server' performing the /say command.
-signature_emote = re.compile(base_pattern % '\\* .*')
+signature_emote = re.compile(base_pattern % '\\* [^ ]*? .*')
 signature_any = re.compile(base_pattern % '.*')
+
+legacy_base_pattern = f'(^{date_pattern} {time_pattern} \\[INFO\\]) (%s)'
+legacy_signature_done = re.compile(legacy_base_pattern % f'Done {startup_time_pattern}! For help, type "help" or "\\?"$')
+legacy_signature_save = re.compile(legacy_base_pattern % 'CONSOLE: Save complete\\.$')
+legacy_signature_stop = re.compile(legacy_base_pattern % 'Stopping server$')
+legacy_signature_join = re.compile(legacy_base_pattern % f'{name_pattern} \\[[0-9a-zA-Z_./:-]+\\] logged in with entity id \\d{{1,10}} at \\({float_pattern}, {float_pattern}, {float_pattern}\\)$')
+legacy_signature_leave = re.compile(legacy_base_pattern % f'{name_pattern} lost connection: .*$')
+legacy_signature_chat = re.compile(legacy_base_pattern % '<[^>]*> .*')
+legacy_signature_server_chat = re.compile(legacy_base_pattern % '[CONSOLE] .*') # Triggers on any output from the console.
+legacy_signature_emote = re.compile(legacy_base_pattern % '\\* [^ ]*? .*')
+legacy_signature_any = re.compile(legacy_base_pattern % '.*')
 
 signature_encoding = re.compile("-Dfile\\.encoding=(.*)")
 
@@ -80,18 +101,6 @@ class EventTrigger:
 		self.signature = signature
 		self.data = None
 		self.match = None
-
-event_triggers = {
-	'done': EventTrigger(signature_done), # Triggers when the server is done loading and is ready to receive commands.
-	'save': EventTrigger(signature_save), # Triggers when the server is saved using save-all.
-	'stop': EventTrigger(signature_stop), # Triggers when the server is stopped. (for shutdown hooks only, spawn a thread waiting for this event.)
-	'join': EventTrigger(signature_join), # Triggers when a player joins the server.
-	'leave': EventTrigger(signature_leave), # Triggers when a player leaves the server.
-	'chat': EventTrigger(signature_chat), # Triggers on any chat message (starting with <NAME>)
-	'server-chat': EventTrigger(signature_server_chat), # Triggers on any chat message sent by the SERVER ONLY. (or a player named Server, be careful, don't give them '/say' access)
-	'emote': EventTrigger(signature_emote), # Triggers on all emotes (lines starting with *).
-	'any': EventTrigger(signature_any), # Triggers on anything, useful for partially regexxing.
-}
 
 safety = ""
 severities = ['DEBUG', 'INFO', 'WARN', 'ERROR']
@@ -300,6 +309,30 @@ def log4j_patch(server_version, server_jar_location, jvm_arguments):
 				pyprint("Patching log4j...")
 				shutil.copy(cache_path, xml_destination)
 
+def init_event_triggers(use_legacy):
+	global event_triggers
+
+	# Initialize event triggers based on version
+	event_triggers = {
+		# Triggers when the server is done loading and is ready to receive commands.
+		'done': EventTrigger(legacy_signature_done if use_legacy else signature_done),
+		# Triggers when the server is saved using save-all.
+		'save': EventTrigger(legacy_signature_save if use_legacy else signature_save),
+		# Triggers when the server is stopped. (for shutdown hooks only, spawn a thread waiting for this event.)
+		'stop': EventTrigger(legacy_signature_stop if use_legacy else signature_stop),
+		# Triggers when a player joins the server.
+		'join': EventTrigger(legacy_signature_join if use_legacy else signature_join),
+		# Triggers when a player leaves the server.
+		'leave': EventTrigger(legacy_signature_leave if use_legacy else signature_leave),
+		# Triggers on any chat message (starting with <NAME>)
+		'chat': EventTrigger(legacy_signature_chat if use_legacy else signature_chat),
+		# Triggers on any chat message sent by the SERVER ONLY. (or a player named Server, be careful, don't give them '/say' access)
+		'server-chat': EventTrigger(legacy_signature_server_chat if use_legacy else signature_server_chat),
+		# Triggers on all emotes (lines starting with *).
+		'emote': EventTrigger(legacy_signature_emote if use_legacy else signature_emote),
+		# Triggers on anything, useful for partially regexxing.
+		'any': EventTrigger(legacy_signature_any if use_legacy else signature_any),
+	}
 
 def obtain_launch_code(config, args):
 	global server_config, server_properties, server_jar, server_version, encoding_inbound
@@ -311,16 +344,26 @@ def obtain_launch_code(config, args):
 	if not path.exists(server_jar):
 		raise Exception(f"[Config] Could not find the server located at: {server_jar}")
 
-	with zipfile.ZipFile(server_jar) as z:
-		try:
-			with z.open("version.json") as f:
-				server_version = json.load(f)
-		except:
-			server_version = {
-				"id": "Unknown",
-				"name": "Unknown",
-				"java_component": "jre-legacy"
-			}
+	version = configure('version', try_get([server_config.get('version')], default='custom'))
+	expect_type('version', version, str)
+
+	init_event_triggers(version == "legacy")
+
+	if (version != "legacy"):
+		with zipfile.ZipFile(server_jar) as z:
+			try:
+				with z.open("version.json") as f:
+					server_version = json.load(f)
+			except:
+				pass
+
+	if server_version is None:
+		server_version = {
+			"id": "Unknown",
+			"name": "Unknown",
+			"java_component": "jre-legacy"
+		}
+
 	if not 'java_component' in server_version:
 		server_version['java_component'] = "jre-legacy"
 

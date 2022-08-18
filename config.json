@@ -25,14 +25,15 @@
         },
         {
             "name": "BotPandas",
-            "version": "release",
+            "version": "legacy",
             "description": "Panda Bot Server",
             "auto-update": false,
             "auto-restart": true,
             "read-only": false,
+            "universe": ".",
             "initialize": [
-                "backup schedule 1h 2",
-                "as idle 10m HARD"
+                "backup schedule 1h 3",
+                "as schedule 1h"
             ]
         },
         {

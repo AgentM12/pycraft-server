@@ -159,6 +159,7 @@ These config settings apply to every server configuration that is run. For any s
   - `auto-restart` (bool): *`Not yet implemented`*; If the server should automatically restart when it crashes (not when it gracefully closes)
   - `read-only` (bool): *`Not yet implemented`*; If the map loaded should be saved to. If this is turned on, the server will make a temporary copy of the world that is selected. `<WORLDNAME_pycraft_copy>` (overriding the previous one). This is useful when you want to run minigames or custom maps that need to be in pristine condition when you first start it. The server will not reset the map when it closed due to a crash, this to preserve the state. You can also just save the copy under a different name to keep progress, but then why are you using read-only anyways?
   - `initialize` (list\<str\>): A list of commands ran at server startup. Commands that start with a `/` are server commands such as `/say`, `/give`, etc. Other commands are module commands such as `modules list` (to list all active modules) (for example setting automatic shutdown and backups, or to send a nice log message, or other stuff)
+  - `module-data` (dict): As with the global configuration, setting this under a server configuration will override the global setting. It is still recommended to set up global settings as a fallback.
   - `__comment_<anything>`: Comments, useful for reading configurations as a human, but it doesn't really do anything for us computers.
 
 ### Running a PyCraft server ###

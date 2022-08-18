@@ -10,9 +10,11 @@ def parse_time(time_str, def_unit='s'):
     t = time_str[:n]
     unit = time_str[n:]
 
+    if (unit == 't' or (unit == '' and def_unit == 't')): return float(t) / 20
     if (unit == 's' or (unit == '' and def_unit == 's')): return int(t)
     if (unit == 'm' or (unit == '' and def_unit == 'm')): return int(float(t) * 60)
     if (unit == 'h' or (unit == '' and def_unit == 'h')): return int(float(t) * 3600)
+    if (unit == 'd' or (unit == '' and def_unit == 'd')): return int(float(t) * 86400)
     raise Exception('Did not recognize unit: %s' % unit)
 
 def max_cmd_len(command, cap, f=None):
