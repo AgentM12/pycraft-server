@@ -1,3 +1,4 @@
 /servers/
 /resources/
+*.py_disabled
 __pycache__
