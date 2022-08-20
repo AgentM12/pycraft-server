@@ -215,7 +215,7 @@ def log4j_patch(server_version, server_jar_location, jvm_arguments):
 		print("PROCEEDING LAUNCH (INSECURE)!")
 		return
 	for arg in jvm_arguments:
-		if (arg.startswith("-Dlog4j2.formatMsgNoLookups") or arg.startswith("-Dlog4j.configurationFile")):
+		if (arg.startswith("-Dlog4j2.formatMsgNoLookups=") or arg.startswith("-Dlog4j.configurationFile=")):
 			import random
 			pyprint("JVM arguments for Log4J should not be included within config.json:", 2)
 			print("  A patch for the log4J [CVE-2021-44228] vulnerability will automatically be applied for any VANILLA version.")
